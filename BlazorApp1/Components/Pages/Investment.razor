@@ -1,0 +1,153 @@
+﻿@page "/"
+@using BlazorApp1.Data
+@using BlazorApp1.Models
+@using BlazorApp1.Services
+@using Microsoft.EntityFrameworkCore;
+@inject CryptoPriceService PriceService
+@inject CryptoDCAContext DbContext
+@rendermode InteractiveServer
+
+<h3>Cryptocurrency DCA Investment Calculator</h3>
+
+<div class="form-group">
+    <label>Select Investment Scenario:</label>
+    <select @bind="selectedScenario" class="form-control">
+        <option value="Basic">Basic</option>
+        <option value="Intermediate">Intermediate</option>
+        <option value="Advanced">Advanced</option>
+    </select>
+</div>
+
+<div class="form-group">
+    <label>Enter Monthly Investment Amount (EUR):</label>
+    <input type="number" @bind="monthlyInvestmentAmount" class="form-control" />
+</div>
+
+<button @onclick="CalculateDCA" class="btn btn-primary mt-3">Calculate DCA</button>
+
+@if (investmentRecords != null && investmentRecords.Any())
+{
+    <h4 class="mt-4">DCA Investment Results</h4>
+    <table class="table table-bordered table-striped">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Invested Amount (EUR)</th>
+                <th>Crypto Amount</th>
+                <th>Value Today (EUR)</th>
+                <th>ROI (%)</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var record in investmentRecords)
+            {
+                <tr>
+                    <td>@record.Date.ToString("MM/yyyy")</td>
+                    <td>@record.InvestedAmount.ToString("C")</td>
+                    <td>@record.CryptoAmount.ToString("F6") (@record.CryptoSymbol)</td>
+                    <td>@record.ValueToday.ToString("C")</td>
+                    <td>@((record.ValueToday - record.InvestedAmount) / record.InvestedAmount * 100)</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+
+@if (competingPerformances != null && competingPerformances.Any())
+{
+    <h4 class="mt-4">Competing Performance Results</h4>
+    <table class="table table-bordered table-striped">
+        <thead>
+            <tr>
+                <th>Crypto</th>
+                <th>Current Price (EUR)</th>
+                <th>Total Investment Value (EUR)</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var performance in competingPerformances)
+            {
+                <tr>
+                    <td>@performance.CryptoSymbol</td>
+                    <td>@performance.CurrentPrice.ToString("C")</td>
+                    <td>@performance.TotalInvestmentValue.ToString("C")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private string selectedScenario = "Basic";
+    private decimal monthlyInvestmentAmount = 200;
+    private List<InvestmentRecord> investmentRecords = [];
+    private List<CompetingCryptoPerformance> competingPerformances = [];
+
+    private async Task CalculateDCA()
+    {
+        investmentRecords = new List<InvestmentRecord>();
+        competingPerformances = new List<CompetingCryptoPerformance>();
+
+        if (selectedScenario == "Basic")
+        {
+            investmentRecords = await CalculateDCAForBasicScenario();
+        }
+        else if (selectedScenario == "Intermediate")
+        {
+            investmentRecords = await CalculateDCAForIntermediateScenario();
+        }
+        else if (selectedScenario == "Advanced")
+        {
+            investmentRecords = await CalculateDCAForAdvancedScenario();
+            competingPerformances = await ComparePerformanceWithTopCoins();
+        }
+    }
+
+    private async Task<List<InvestmentRecord>> CalculateDCAForBasicScenario()
+    {
+        var investmentInputs = new List<DCAInvestmentInput>
+        {
+            new DCAInvestmentInput
+            {
+                CryptoSymbol = "BTC",
+                MonthlyInvestmentAmount = monthlyInvestmentAmount,
+                StartDate = new DateTime(DateTime.Today.Year, 1, 1),
+                DayOfMonth = 15
+            }
+        };
+
+        return await PriceService.CalculateDCA(investmentInputs);
+    }
+
+    private async Task<List<InvestmentRecord>> CalculateDCAForIntermediateScenario()
+    {
+        var investmentInputs = new List<DCAInvestmentInput>
+        {
+            new DCAInvestmentInput { CryptoSymbol = "BTC", MonthlyInvestmentAmount = 50, StartDate = new DateTime(DateTime.Today.Year - 1, 1, 1), DayOfMonth = 20 },
+            new DCAInvestmentInput { CryptoSymbol = "ETH", MonthlyInvestmentAmount = 50, StartDate = new DateTime(DateTime.Today.Year - 1, 1, 1), DayOfMonth = 20 },
+            new DCAInvestmentInput { CryptoSymbol = "SOL", MonthlyInvestmentAmount = 50, StartDate = new DateTime(DateTime.Today.Year - 1, 1, 1), DayOfMonth = 20 },
+            new DCAInvestmentInput { CryptoSymbol = "XRP", MonthlyInvestmentAmount = 50, StartDate = new DateTime(DateTime.Today.Year - 1, 1, 1), DayOfMonth = 20 }
+        };
+
+        return await PriceService.CalculateDCA(investmentInputs);
+    }
+
+    private async Task<List<InvestmentRecord>> CalculateDCAForAdvancedScenario()
+    {
+        var investmentInputs = new List<DCAInvestmentInput>
+        {
+            new DCAInvestmentInput { CryptoSymbol = "BTC", MonthlyInvestmentAmount = 100, StartDate = new DateTime(DateTime.Today.Year - 1, 1, 1), DayOfMonth = 25 },
+            new DCAInvestmentInput { CryptoSymbol = "ETH", MonthlyInvestmentAmount = 150, StartDate = new DateTime(DateTime.Today.Year, 1, 1), DayOfMonth = 25 }
+        };
+
+        return await PriceService.CalculateDCA(investmentInputs);
+    }
+
+    private async Task<List<CompetingCryptoPerformance>> ComparePerformanceWithTopCoins()
+    {
+        var topCoins = new List<string> { "BNB", "DOGE", "TON", "TRX" };
+        return await PriceService.ComparePerformance(topCoins);
+    }
+}
+
